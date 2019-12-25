@@ -1,0 +1,61 @@
+# Install haproxy
+- name: Remove haproxy
+  yum:
+    name: haproxy
+    state: absent
+
+- name: Install haproxy
+  yum:
+    name: haproxy
+    state: latest
+
+- name: Enable haproxy server
+  systemd:
+    name: haproxy
+    state: started
+    enabled: yes
+
+- name: Create a directory for the  log file
+  file: path={{ item }} state=directory owner=root group=root
+  with_items:
+    - "{{ log_dir }}"
+
+- name: Config rsyslog file and logrotate file for for the log of haproxy
+  lineinfile:
+    path: "{{ item.path }}"
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  with_items:
+    - { path: '/etc/sysconfig/rsyslog', regexp: "^SYSLOGD_OPTIONS=" ,line: 'SYSLOGD_OPTIONS="-c 2 -r -m 0"' }
+    - { path: '/etc/rsyslog.conf', regexp: "^#$ModLoad imudp" ,line: '$ModLoad imudp' }
+    - { path: '/etc/rsyslog.conf', regexp: "^#$UDPServerRun 514" ,line: '$UDPServerRun 514' }
+    - { path: '/etc/rsyslog.conf', regexp: "^#$ModLoad imtcp" ,line: '$ModLoad imtcp' }
+    - { path: '/etc/rsyslog.conf', regexp: "^#$InputTCPServerRun 514" ,line: '$InputTCPServerRun 514' }
+    - { path: '/etc/logrotate.d/haproxy', regexp: "^/var/log/haproxy.log" ,line: "{{ log_dir }}/haproxy.log" }
+
+- name: Add monitor log file path for the log of haproxy
+  lineinfile:
+    path: /etc/rsyslog.conf
+    line: "{{ item }}"
+    insertafter: EOF
+    state: present
+  with_items:
+    - "# Save haproxy.log"
+    - "local1.*       {{ log_dir }}/haproxy.log"
+  notify: restart rsyslog
+
+- name: Rendering haproxy parameter file
+  template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+    owner: haproxy
+    group: haproxy
+    mode: 0644
+  notify: restart haproxy
+
+- name: Add log polling task schedule for haproxy
+  cron:
+    name: "logrotate"
+    minute: "55"
+    hour: "23"
+    job: "/usr/sbin/logrotate -vf -s /var/lib/logrotate/logrotate.status /etc/logrotate.d/haproxy > /dev/null"

@@ -1,0 +1,9 @@
+---
+# defaults file for haproxy
+log: 127.0.0.1 local1
+maxconn: 30000
+proxysql_or_mysql: { proxysql: proxysql_cluster }
+bind: *:3377
+proxysql_port: 3377
+mysql_port: 3377
+log_dir: /var/local/log

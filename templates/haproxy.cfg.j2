@@ -1,0 +1,68 @@
+#---------------------------------------------------------------------
+# Global settings
+#---------------------------------------------------------------------
+
+global                                        #定义全局配置段;
+    log         {{ log }}              #通过rsyslog将日志进行归档记录;
+    pidfile     /var/run/haproxy.pid          #指定pid文件;
+    maxconn     {{ maxconn }}                          #最大并发连接数;
+    user        haproxy                       #运行haproxy的用户;
+    group       haproxy                       #运行haproxy的组;
+    daemon                                    #以守护进程的形式运行,即后台运行;
+
+#---------------------------------------------------------------------
+# common defaults that all the 'listen' and 'backend' sections will
+# use if not designated in their block
+#---------------------------------------------------------------------
+
+defaults                                       #默认配置端;
+    mode                    tcp                #工作模式,源码包编译默认为tcp;
+    log                     global             #记录全局日志;
+#   option                  httplog            #详细记录http日志;
+#   option                  dontlognull        #不记录健康检测的日志信息;
+#   option http-server-close                   #启用服务器端主动关闭功能;
+#   option forwardfor       except 127.0.0.0/8 #传递client端IP至后端real server;
+#   option                  redispatch         #基于cookie做会话保持时,后端对应存放session的服务器出现故障时,会话会被重定向至别的服务器;
+    retries                 3s                 #请求重传次数;
+#   timeout http-request    10s                #断开客户端连接的时长;
+    timeout queue           10m                #一个请求在队列里的超时时长;
+    timeout connect         10s                #设定在haproxy转发至后端upstream server时等待的超时时长;
+    timeout client          1m                 #client的一次非活动状态的超时时长;
+    timeout server          1m                 #等待服务器端的非活动的超时时长;
+#   timeout http-keep-alive 10s                #持久连接超时时长;
+    timeout check           10s                #检查请求连接的超时时长;
+    maxconn                 {{ maxconn }}               #最大连接数;
+
+{% for key, value in proxysql_or_mysql.items() %}
+frontend {{ key }}                              #定义负载均衡
+    bind {{ bind }}
+    mode tcp
+    log global
+    default_backend {{ value }}
+{% endfor %}
+
+{% for key, value in proxysql_or_mysql.items() %}
+backend {{ value }}
+{% if {{ key }} == 'proxysql' %}
+    balance roundrobin
+{% for host in groups['proyxsql'] %}
+  {{ hostvars[host]['inventory_hostname_short'] }}  {{ hostvars[host]['ansible_default_ipv4']['address'] }}:{{ proxysql_port }} check port {{ proxysql_port }} rise 1 fall 3 maxconn 10000 weight 1
+{% endfor %}
+{% else %}
+{% for host in groups['mgr'] %}
+  {{ hostvars[host]['inventory_hostname_short'] }}  {{ hostvars[host]['ansible_default_ipv4']['address'] }}:{{ mysql_port }} check port {{ mysql_port }} rise 1 fall 3 maxconn 10000 weight 1
+{% endfor %}
+{% endfor %}
+
+listen stats                                 #使用单独输出,不需要frontedn调用：定义haproxy的状态统计页面;
+    bind *:8921                               #监听的地址;
+    mode http                                 #http 7层工作模式:对应用层数据做深入分析,因此支持7层的过滤、处理、转换等机制;
+    stats enable                              #开启统计页面输出;
+    stats hide-version                        #隐藏状态页面版本号;
+    stats uri /haproxystats                   #指定状态页的访问路径;
+    stats auth admin:{{ admin_password }}               #基于用户名,密码验证;
+    stats admin if TRUE                       #验证通过时运行登录;
+    stats refresh 10s                          #统计页面自动刷新时间
+#   acl num1 src 172.29.0.0/16                #定义源地址为172.29.0.0/16网段的acl规则,将其命名为num1;
+#   tcp-request content accept if num1        #如果满足此规则,则允许访问;
+#   tcp-request content reject                #拒绝其他所有的访问;
