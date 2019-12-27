@@ -14,7 +14,8 @@
 #    name: "{{ packages }}"
 #    state: latest
 
-- hostname:
+- name: Config hostname
+  hostname:
     name: "{{ ansible_hostname }}"
 
 #- name: 更新所有软件包

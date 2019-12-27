@@ -26,12 +26,12 @@
     regexp: "{{ item.regexp }}"
     line: "{{ item.line }}"
   with_items:
-    - { path: '/etc/sysconfig/rsyslog', regexp: "^SYSLOGD_OPTIONS=" ,line: 'SYSLOGD_OPTIONS="-c 2 -r -m 0"' }
-    - { path: '/etc/rsyslog.conf', regexp: "^#$ModLoad imudp" ,line: '$ModLoad imudp' }
-    - { path: '/etc/rsyslog.conf', regexp: "^#$UDPServerRun 514" ,line: '$UDPServerRun 514' }
-    - { path: '/etc/rsyslog.conf', regexp: "^#$ModLoad imtcp" ,line: '$ModLoad imtcp' }
-    - { path: '/etc/rsyslog.conf', regexp: "^#$InputTCPServerRun 514" ,line: '$InputTCPServerRun 514' }
-    - { path: '/etc/logrotate.d/haproxy', regexp: "^/var/log/haproxy.log" ,line: "{{ log_dir }}/haproxy.log" }
+    - { path: '/etc/sysconfig/rsyslog', regexp: "^SYSLOGD_OPTIONS=", line: 'SYSLOGD_OPTIONS="-c 2 -r -m 0"' }
+    - { path: '/etc/rsyslog.conf', regexp: "^#$ModLoad imudp", line: '$ModLoad imudp' }
+    - { path: '/etc/rsyslog.conf', regexp: "^#$UDPServerRun 514", line: '$UDPServerRun 514' }
+    - { path: '/etc/rsyslog.conf', regexp: "^#$ModLoad imtcp", line: '$ModLoad imtcp' }
+    - { path: '/etc/rsyslog.conf', regexp: "^#$InputTCPServerRun 514", line: '$InputTCPServerRun 514' }
+    - { path: '/etc/logrotate.d/haproxy', regexp: "^/var/log/haproxy.log", line: "{{ log_dir }}/haproxy.log" }
 
 - name: Add monitor log file path for the log of haproxy
   lineinfile:
