@@ -41,7 +41,7 @@
     state: present
   with_items:
     - "# Save haproxy.log"
-    - "local1.*       {{ log_dir }}/haproxy.log"
+    - "{{ log_channel }}.*       {{ log_dir }}/haproxy.log"
   notify: restart rsyslog
 
 - name: Rendering haproxy parameter file

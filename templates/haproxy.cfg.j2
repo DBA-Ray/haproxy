@@ -3,9 +3,9 @@
 #---------------------------------------------------------------------
 
 global                                        #定义全局配置段;
-    log         {{ log }}              #通过rsyslog将日志进行归档记录;
+    log         {{ log }}                     #通过rsyslog将日志进行归档记录;
     pidfile     /var/run/haproxy.pid          #指定pid文件;
-    maxconn     {{ maxconn }}                          #最大并发连接数;
+    maxconn     {{ maxconn }}                 #最大并发连接数;
     user        haproxy                       #运行haproxy的用户;
     group       haproxy                       #运行haproxy的组;
     daemon                                    #以守护进程的形式运行,即后台运行;
@@ -31,38 +31,35 @@ defaults                                       #默认配置端;
     timeout server          1m                 #等待服务器端的非活动的超时时长;
 #   timeout http-keep-alive 10s                #持久连接超时时长;
     timeout check           10s                #检查请求连接的超时时长;
-    maxconn                 {{ maxconn }}               #最大连接数;
+    maxconn                 {{ maxconn }}      #最大连接数;
 
-{% for key, value in proxysql_or_mysql.items() %}
-frontend {{ key }}                              #定义负载均衡
+frontend {{ proxysql_or_mysql }}               #定义负载均衡
     bind {{ bind }}
     mode tcp
     log global
-    default_backend {{ value }}
-{% endfor %}
+    default_backend {{ backend }}
 
-{% for key, value in proxysql_or_mysql.items() %}
-backend {{ value }}
-{% if {{ key }} == 'proxysql' %}
+backend {{ backend }}
     balance roundrobin
-{% for host in groups['proyxsql'] %}
-  {{ hostvars[host]['inventory_hostname_short'] }}  {{ hostvars[host]['ansible_default_ipv4']['address'] }}:{{ proxysql_port }} check port {{ proxysql_port }} rise 1 fall 3 maxconn 10000 weight 1
+{% if proxysql_or_mysql == "proxysql" %}
+{% for host in groups['proxysql'] %}
+server {{ hostvars[host]['inventory_hostname_short'] }}  {{ hostvars[host]['ansible_default_ipv4']['address'] }}:{{ proxysql_port }} check port {{ proxysql_port }} rise 1 fall 3 maxconn {{ backend_maxconn }} weight 1
 {% endfor %}
 {% else %}
 {% for host in groups['mgr'] %}
-  {{ hostvars[host]['inventory_hostname_short'] }}  {{ hostvars[host]['ansible_default_ipv4']['address'] }}:{{ mysql_port }} check port {{ mysql_port }} rise 1 fall 3 maxconn 10000 weight 1
+server {{ hostvars[host]['inventory_hostname_short'] }}  {{ hostvars[host]['ansible_default_ipv4']['address'] }}:{{ proxysql_port }} check port {{ proxysql_port }} rise 1 fall 3 maxconn {{ backend_maxconn }} weight 1
 {% endfor %}
-{% endfor %}
+{% endif %}
 
-listen stats                                 #使用单独输出,不需要frontedn调用：定义haproxy的状态统计页面;
+listen stats                                  #使用单独输出,不需要frontedn调用：定义haproxy的状态统计页面;
     bind *:8921                               #监听的地址;
     mode http                                 #http 7层工作模式:对应用层数据做深入分析,因此支持7层的过滤、处理、转换等机制;
     stats enable                              #开启统计页面输出;
     stats hide-version                        #隐藏状态页面版本号;
-    stats uri /haproxystats                   #指定状态页的访问路径;
-    stats auth admin:{{ admin_password }}               #基于用户名,密码验证;
+    stats uri /haproxy                        #指定状态页的访问路径;
+    stats auth admin:{{ haproxy_password }}   #基于用户名,密码验证;
     stats admin if TRUE                       #验证通过时运行登录;
-    stats refresh 10s                          #统计页面自动刷新时间
+    stats refresh 10s                         #统计页面自动刷新时间
 #   acl num1 src 172.29.0.0/16                #定义源地址为172.29.0.0/16网段的acl规则,将其命名为num1;
 #   tcp-request content accept if num1        #如果满足此规则,则允许访问;
 #   tcp-request content reject                #拒绝其他所有的访问;
