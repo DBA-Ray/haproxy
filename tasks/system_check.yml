@@ -9,10 +9,10 @@
     regexp: "^SELINUX="
     line: "SELINUX=disabled"
 
-#- name: 安装基础软件包
-#  yum:
-#    name: "{{ packages }}"
-#    state: latest
+- name: Install base packages
+  yum:
+    name: "{{ packages }}"
+    state: latest
 
 - name: Config hostname
   hostname:
